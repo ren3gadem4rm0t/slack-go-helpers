@@ -51,4 +51,96 @@ func main() {
 
 	fmt.Println("\nAttachment JSON:")
 	fmt.Println(string(attachmentJSON))
+
+	// Expected output:
+	// Blocks JSON:
+	// [
+	// 	{
+	// 		"type": "section",
+	// 		"text": {
+	// 		"type": "mrkdwn",
+	// 		"text": "Welcome to the app!"
+	// 		}
+	// 	},
+	// 	{
+	// 		"type": "divider"
+	// 	},
+	// 	{
+	// 		"type": "actions",
+	// 		"elements": [
+	// 		{
+	// 			"type": "button",
+	// 			"text": {
+	// 			"type": "plain_text",
+	// 			"text": "Click Me",
+	// 			"emoji": true
+	// 			},
+	// 			"action_id": "btn_1",
+	// 			"value": "value_1"
+	// 		},
+	// 		{
+	// 			"type": "button",
+	// 			"text": {
+	// 			"type": "plain_text",
+	// 			"text": "Cancel",
+	// 			"emoji": true
+	// 			},
+	// 			"action_id": "btn_2",
+	// 			"value": "value_2"
+	// 		}
+	// 		]
+	// 	},
+	// 	{
+	// 		"type": "context",
+	// 		"elements": [
+	// 		{
+	// 			"type": "plain_text",
+	// 			"text": "Powered by Slack"
+	// 		}
+	// 		]
+	// 	}
+	// ]
+
+	// Attachment JSON:
+	// [
+	// 	{
+	// 		"color": "#ffae42",
+	// 		"blocks": [
+	// 		{
+	// 			"type": "section",
+	// 			"text": {
+	// 			"type": "mrkdwn",
+	// 			"text": "This is a warning message"
+	// 			}
+	// 		},
+	// 		{
+	// 			"type": "divider"
+	// 		},
+	// 		{
+	// 			"type": "actions",
+	// 			"elements": [
+	// 			{
+	// 				"type": "button",
+	// 				"text": {
+	// 				"type": "plain_text",
+	// 				"text": "Acknowledge",
+	// 				"emoji": true
+	// 				},
+	// 				"action_id": "warn_btn_1",
+	// 				"value": "warn_value_1"
+	// 			}
+	// 			]
+	// 		},
+	// 		{
+	// 			"type": "context",
+	// 			"elements": [
+	// 			{
+	// 				"type": "plain_text",
+	// 				"text": "Please be cautious"
+	// 			}
+	// 			]
+	// 		}
+	// 		]
+	// 	}
+	// ]
 }
