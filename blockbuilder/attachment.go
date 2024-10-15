@@ -53,6 +53,19 @@ func (a *AttachmentBuilder) AddDivider() *AttachmentBuilder {
 	return a
 }
 
+// AddBlock allows adding a custom block built using BlockBuilder pattern.
+func (a *AttachmentBuilder) AddBlock(customBlock slack.Block) *AttachmentBuilder {
+	a.attachment.Blocks.BlockSet = append(a.attachment.Blocks.BlockSet, customBlock)
+	return a
+}
+
+// AddBlocksFromBuilder allows adding multiple blocks from a BlockBuilder instance.
+func (a *AttachmentBuilder) AddBlocksFromBuilder(builder *BlockBuilder) *AttachmentBuilder {
+	blocks := builder.Build()
+	a.attachment.Blocks.BlockSet = append(a.attachment.Blocks.BlockSet, blocks...)
+	return a
+}
+
 // Build returns the constructed attachment.
 func (a *AttachmentBuilder) Build() slack.Attachment {
 	return a.attachment

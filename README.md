@@ -25,7 +25,7 @@ Then, import the packages as needed:
 
 ```go
 import (
-    "github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
+    blockbuilder "github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
 )
 ```
 
@@ -87,30 +87,99 @@ The `AttachmentBuilder` is used for creating Slack message attachments. Attachme
 - `AddContext(elements ...slack.MixedElement) *AttachmentBuilder`: Adds a context block to the attachment.
 - `AddImage(imageURL, altText string) *AttachmentBuilder`: Adds an image block to the attachment.
 - `AddDivider() *AttachmentBuilder`: Adds a divider block to the attachment.
+- `AddBlock(block slack.Block) *AttachmentBuilder`: Adds a custom block to the attachment.
+- `AddBlocksFromBuilder(builder *BlockBuilder) *AttachmentBuilder`: Adds blocks from a `BlockBuilder` instance to the attachment.
 - `Build() slack.Attachment`: Returns the assembled attachment.
 
-#### Example Usage
+#### Example Usage of `AddBlock`
 
 ```go
 package main
 
 import (
-    "fmt"
-    "github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
-    "github.com/slack-go/slack"
+	"encoding/json"
+	"fmt"
+	"log"
+
+	"github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
+	"github.com/slack-go/slack"
 )
 
 func main() {
-    attachmentBuilder := blockbuilder.NewAttachmentBuilder(blockbuilder.ColorWarning).
-        AddSection("This is a warning message", true).
-        AddActions(
-            blockbuilder.NewButton("ack_btn", "Acknowledge", "value_ack"),
-        ).
-        AddContext(slack.NewTextBlockObject("plain_text", "Please proceed with caution.", false, false))
+	// Create a BlockBuilder instance to build a custom block.
+	customBlock := blockbuilder.NewBlockBuilder().
+		AddSection("This is a custom block added using AddBlock!", true).
+		AddDivider().
+		AddImage("https://image.url/example.png", "Example Image").
+		Build()
 
-    attachment := attachmentBuilder.Build()
+	// Create an attachment and add a combination of custom blocks and predefined blocks.
+	attachmentBuilder := blockbuilder.NewAttachmentBuilder(blockbuilder.ColorWarning).
+		AddSection("This is a warning message", true).
+		AddDivider().
+		AddBlock(customBlock[0]). // Adding a single custom block
+		AddActions(
+			blockbuilder.NewButton("ack_btn", "Acknowledge", "warn_value_1"),
+		).
+		AddContext(slack.NewTextBlockObject("plain_text", "Proceed with caution.", false, false))
 
-    fmt.Println(attachment) // JSON or Slack API usage
+	// Build the attachment.
+	attachment := attachmentBuilder.Build()
+
+	// Marshal the attachment to JSON for display.
+	attachmentJSON, err := json.MarshalIndent(attachment, "", "  ")
+	if err != nil {
+		log.Fatalf("Error marshaling attachment: %v", err)
+	}
+
+	// Print the JSON representation of the attachment.
+	fmt.Println("Attachment JSON:")
+	fmt.Println(string(attachmentJSON))
+}
+```
+
+#### Example Usage of `AddBlocksFromBuilder`
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+
+	"github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
+	"github.com/slack-go/slack"
+)
+
+func main() {
+	// Create a BlockBuilder instance to build custom blocks.
+	blockBuilder := blockbuilder.NewBlockBuilder().
+		AddSection("Custom block added using BlockBuilder!", true).
+		AddImage("https://image.url/example.png", "Example Image")
+
+	// Create an attachment and add both custom blocks and blocks through helper methods.
+	attachmentBuilder := blockbuilder.NewAttachmentBuilder(blockbuilder.ColorWarning).
+		AddSection("This is a warning message", true).
+		AddDivider().
+		AddBlocksFromBuilder(blockBuilder). // Add blocks from the BlockBuilder
+		AddActions(
+			blockbuilder.NewButton("ack_btn", "Acknowledge", "warn_value_1"),
+		).
+		AddContext(slack.NewTextBlockObject("plain_text", "Please proceed with caution.", false, false))
+
+	// Build the attachment.
+	attachment := attachmentBuilder.Build()
+
+	// Marshal the attachment to JSON for display.
+	attachmentJSON, err := json.MarshalIndent(attachment, "", "  ")
+	if err != nil {
+		log.Fatalf("Error marshaling attachment: %v", err)
+	}
+
+	// Print the JSON representation of the attachment.
+	fmt.Println("Attachment JSON:")
+	fmt.Println(string(attachmentJSON))
 }
 ```
 
