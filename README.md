@@ -25,7 +25,7 @@ Then, import the packages as needed:
 
 ```go
 import (
-    blockbuilder "github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
+    "github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
 )
 ```
 
