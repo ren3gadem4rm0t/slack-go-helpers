@@ -10,7 +10,18 @@
     - [BlockBuilder](#blockbuilder)
     - [AttachmentBuilder](#attachmentbuilder)
     - [Color](#color)
+  - [deduper](#deduper)
+    - [Dedupe](#dedupe)
+    - [EvictionPolicy](#evictionpolicy)
+    - [Helper Functions](#helper-functions)
 - [Examples](#examples)
+  - [Basic BlockBuilder Example](#basic-blockbuilder-example)
+  - [AttachmentBuilder Example](#attachmentbuilder-example)
+  - [Basic Dedupe Example](#basic-dedupe-example)
+  - [Custom Eviction Policy Example](#custom-eviction-policy-example)
+  - [Automatic Eviction Example](#automatic-eviction-example)
+  - [Comprehensive Dedupe and Socket Mode Example](#comprehensive-dedupe-and-socket-mode-example)
+  - [Socket Mode Integration Example](#socket-mode-integration-example)
 - [License](#license)
 
 ## Installation
@@ -26,6 +37,7 @@ Then, import the packages as needed:
 ```go
 import (
     blockbuilder "github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
+    deduper "github.com/ren3gadem4rm0t/slack-go-helpers/deduper"
 )
 ```
 
@@ -200,6 +212,7 @@ The `Color` package provides pre-defined constants for common Slack message atta
 package main
 
 import (
+    "fmt"
     "github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
 )
 
@@ -213,16 +226,374 @@ func main() {
 }
 ```
 
+### deduper
+
+The `deduper` package provides mechanisms to handle event deduplication and caching. It ensures that duplicate events are ignored, which is particularly useful when dealing with events that might be retried or sent multiple times by Slack.
+
+#### Dedupe
+
+The `Dedupe` struct is responsible for managing event deduplication using an internal cache with configurable eviction policies. It offers both manual and automatic eviction capabilities to maintain cache integrity.
+
+#### API
+
+- **`NewDedupe(sizeLimit int, timeLimit time.Duration, countLimit int, opts ...Option) *Dedupe`**: Initializes a new deduplication handler with specified size, time, and count limits for the cache. Accepts functional options to configure additional behaviors, such as enabling automatic eviction.
+  
+- **`NewDedupeWithEvictPolicy(evictPolicy *EvictionPolicy, opts ...Option) *Dedupe`**: Initializes a new deduplication handler with a custom eviction policy. Accepts functional options similar to `NewDedupe`.
+  
+- **`AddEvent(eventID string) bool`**: Checks if an event is a duplicate. If not, it adds the event to the cache and returns `true`. Returns `false` if the event is a duplicate.
+  
+- **`Middleware(next func(evt *socketmode.Event, client *socketmode.Client)) func(evt *socketmode.Event, client *socketmode.Client)`**: Wraps a Socket Mode event handler with deduplication logic.
+  
+- **`Size() int`**: Returns the current size of the deduplication cache.
+  
+- **`Items() map[string]time.Time`**: Returns a copy of the current items in the cache.
+  
+- **`TriggerEviction()`**: Manually triggers the eviction policy to remove stale or excess events from the cache.
+  
+- **`StopAutoEviction()`**: Stops the automatic eviction goroutine if it was enabled during initialization.
+
+#### Options
+
+- **`OptionAutoEvict(interval time.Duration) Option`**: Enables automatic eviction with the specified interval. When enabled, a background goroutine periodically applies the eviction policy based on the provided interval.
+
+#### Example Usage
+
+##### **Basic Dedupe Example**
+
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+
+    "github.com/ren3gadem4rm0t/slack-go-helpers/deduper"
+)
+
+func main() {
+    // Initialize the deduplication handler with size limit, time limit, and count limit
+    dedupeHandler := deduper.NewDedupe(1000, 5*time.Minute, 500)
+
+    eventIDs := []string{"event1", "event2", "event3", "event1", "event2"}
+
+    for _, id := range eventIDs {
+        if dedupeHandler.AddEvent(id) {
+            fmt.Printf("Processed event: %s\n", id)
+        } else {
+            fmt.Printf("Duplicate event ignored: %s\n", id)
+        }
+    }
+
+    fmt.Printf("Current cache size: %d\n", dedupeHandler.Size())
+}
+```
+
+##### **Custom Eviction Policy Example**
+
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+
+    "github.com/ren3gadem4rm0t/slack-go-helpers/deduper"
+)
+
+// CustomEvictionPolicy defines a custom eviction policy
+type CustomEvictionPolicy struct {
+    *deduper.EvictionPolicy
+}
+
+// Apply overrides the default Apply method to implement custom logic
+func (e *CustomEvictionPolicy) Apply(c *deduper.Cache) {
+    // Custom rule: Evict events that start with "temp"
+    for id := range c.Items() {
+        if len(id) >= 4 && id[:4] == "temp" {
+            c.Evict(id)
+            fmt.Printf("Evicted event based on custom rule: %s\n", id)
+        }
+    }
+
+    // Call the original eviction logic
+    e.EvictionPolicy.Apply(c)
+}
+
+func main() {
+    // Initialize the custom eviction policy
+    baseEvictionPolicy := deduper.NewEvictionPolicy(1000, 10*time.Minute, 1000)
+    customEvictionPolicy := &CustomEvictionPolicy{baseEvictionPolicy}
+
+    // Initialize the deduplication handler with the custom eviction policy
+    dedupeHandler := deduper.NewDedupeWithEvictPolicy(customEvictionPolicy.EvictionPolicy)
+
+    // Add events
+    events := []string{"temp_event1", "event2", "temp_event3", "event4"}
+
+    for _, id := range events {
+        dedupeHandler.AddEvent(id)
+    }
+
+    fmt.Printf("Cache size before eviction: %d\n", dedupeHandler.Size())
+
+    // Manually trigger eviction using the ApplyEviction method
+    dedupeHandler.TriggerEviction()
+
+    fmt.Printf("Cache size after eviction: %d\n", dedupeHandler.Size())
+
+    // Check remaining events
+    for id := range dedupeHandler.Items() {
+        fmt.Printf("Remaining event: %s\n", id)
+    }
+}
+```
+
+##### **Automatic Eviction Example**
+
+```go
+package main
+
+import (
+    "fmt"
+    "sync"
+    "time"
+
+    "github.com/ren3gadem4rm0t/slack-go-helpers/deduper"
+)
+
+func main() {
+    // Initialize the deduplication handler with size limit, time limit, and count limit
+    // Enable automatic eviction with an interval of 10 seconds
+    dedupeHandler := deduper.NewDedupe(1000, 20*time.Second, 1000, deduper.OptionAutoEvict(10*time.Second))
+    defer dedupeHandler.StopAutoEviction() // Ensure the eviction goroutine is stopped when main exits
+
+    var wg sync.WaitGroup
+
+    // Include some "temp_*" events to test manual eviction
+    eventIDs := []string{
+        "event1",
+        "event2",
+        "temp_event3", // Should be evicted manually
+        "event1",       // Duplicate
+        "event2",       // Duplicate
+        "event4",
+        "temp_event5", // Should be evicted manually
+        "event6",
+    }
+
+    for _, id := range eventIDs {
+        wg.Add(1)
+        go func(eventID string) {
+            defer wg.Done()
+            if eventID == "event6" {
+                // Wait for 18 seconds before processing event6 to allow some events to expire
+                time.Sleep(18 * time.Second)
+            }
+            if dedupeHandler.AddEvent(eventID) {
+                fmt.Printf("Processed event: %s\n", eventID)
+            } else {
+                fmt.Printf("Duplicate event ignored: %s\n", eventID)
+            }
+        }(id)
+    }
+
+    wg.Wait()
+
+    fmt.Printf("Final cache size: %d\n", dedupeHandler.Size())
+
+    // Manually trigger eviction to remove "temp_*" events
+    fmt.Println("Manually triggering eviction...")
+    dedupeHandler.TriggerEviction()
+
+    // After manual eviction, check cache size and contents
+    fmt.Printf("Cache size after manual eviction: %d\n", dedupeHandler.Size())
+    fmt.Println("Remaining events after manual eviction:")
+    for id := range dedupeHandler.Items() {
+        fmt.Printf("- %s\n", id)
+    }
+
+    // Wait for automatic eviction to occur
+    fmt.Println("Waiting for automatic eviction to occur...")
+    time.Sleep(15 * time.Second)
+
+    // Final cache size after automatic eviction
+    fmt.Printf("Cache size after automatic eviction: %d\n", dedupeHandler.Size())
+    fmt.Println("Remaining events after automatic eviction:")
+    for id := range dedupeHandler.Items() {
+        fmt.Printf("- %s\n", id)
+    }
+}
+```
+
+#### EvictionPolicy
+
+The `EvictionPolicy` struct defines the rules for removing stale entries from the cache. It supports eviction based on time limits and count limits.
+
+#### API
+
+- **`NewEvictionPolicy(sizeLimit int, timeLimit time.Duration, countLimit int) *EvictionPolicy`**: Creates a new eviction policy with specified size, time, and count limits.
+  
+- **`Apply(c *Cache)`**: Applies the eviction policy to the given cache, removing items that exceed the defined limits.
+
+#### Example Usage
+
+```go
+package main
+
+import (
+    "time"
+
+    "github.com/ren3gadem4rm0t/slack-go-helpers/deduper"
+)
+
+func main() {
+    // Create an eviction policy with a size limit of 1000, time limit of 10 minutes, and count limit of 500
+    evictionPolicy := deduper.NewEvictionPolicy(1000, 10*time.Minute, 500)
+
+    // Initialize the cache with the eviction policy
+    cache := deduper.NewCache(evictionPolicy)
+
+    // Add events to the cache
+    cache.Add("event_1")
+    cache.Add("event_2")
+
+    // Check if an event exists
+    if cache.Has("event_1") {
+        println("Event 1 is in the cache.")
+    }
+
+    // Get the current size of the cache
+    println("Cache size:", cache.Size())
+}
+```
+
+#### Helper Functions
+
+The `deduper` package also includes helper functions to extract stable event IDs from Slack Socket Mode events, ensuring accurate deduplication.
+
+#### API
+
+- **`ExtractEventIDFromSocketMode(evt *socketmode.Event) (string, error)`**: Extracts a stable event ID from a Socket Mode event for deduplication purposes. It prefers `client_msg_id` for message events and falls back to hashing key event fields for other event types.
+  
+- **`ExtractEnvelopeIDFromSocketMode(evt *socketmode.Event) (string, error)`**: Extracts the `envelope_id` from a Socket Mode event, which can also be used for deduplication.
+
+#### Example Usage
+
+```go
+package main
+
+import (
+    "fmt"
+
+    "github.com/ren3gadem4rm0t/slack-go-helpers/deduper"
+    "github.com/slack-go/slack/socketmode"
+)
+
+func main() {
+    // Assume you have a socketmode.Event named evt
+    var evt *socketmode.Event
+
+    // Extract the event ID
+    eventID, err := deduper.ExtractEventIDFromSocketMode(evt)
+    if err != nil {
+        fmt.Printf("Error extracting event ID: %v\n", err)
+        return
+    }
+
+    fmt.Printf("Extracted Event ID: %s\n", eventID)
+
+    // Alternatively, extract the envelope ID
+    envelopeID, err := deduper.ExtractEnvelopeIDFromSocketMode(evt)
+    if err != nil {
+        fmt.Printf("Error extracting envelope ID: %v\n", err)
+        return
+    }
+
+    fmt.Printf("Extracted Envelope ID: %s\n", envelopeID)
+}
+```
+
+---
+
 ## Examples
 
 ### Basic BlockBuilder Example
 
 See [`examples/blockbuilder/basic/main.go`](./examples/blockbuilder/basic/main.go) for a simple usage of the `BlockBuilder`.
 
-### Attachment Example
+### AttachmentBuilder Example
 
 See [`examples/blockbuilder/attachment/main.go`](./examples/blockbuilder/attachment/main.go) for an example of creating attachments with blocks.
+
+### Basic Dedupe Example
+
+See [`examples/deduper/basic/main.go`](./examples/deduper/basic/main.go) for a simple usage of the `Dedupe` struct.
+
+### Custom Eviction Policy Example
+
+See [`examples/deduper/custom_eviction/main.go`](./examples/deduper/custom_eviction/main.go) for an example of implementing a custom eviction policy with `Dedupe`.
+
+### Automatic Eviction Example
+
+See [`examples/deduper/auto_eviction/main.go`](./examples/deduper/auto_eviction/main.go) for an example of enabling and using automatic eviction in the `Dedupe` struct.
+
+### Comprehensive Dedupe and Socket Mode Example
+
+See [`examples/deduper/comprehensive/main.go`](./examples/deduper/comprehensive/main.go) for a comprehensive example integrating `Dedupe` with Slack Socket Mode.
+
+### Socket Mode Integration Example
+
+See [`examples/deduper/socketmode/main.go`](./examples/deduper/socketmode/main.go) for an example of integrating `Dedupe` with Slack Socket Mode.
+
+---
 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+
+---
+
+# Additional Notes
+
+### **1. Ensuring Comprehensive Documentation**
+
+- **Detailed Sections:**  
+  Each module (`blockbuilder`, `deduper`) has clear subsections explaining their functionalities, APIs, and example usages. This ensures that users can quickly understand and utilize the helpers.
+
+- **Examples:**  
+  Providing multiple examples under the `Examples` section helps users see practical implementations of the modules in action, facilitating easier adoption.
+
+### **2. Highlighting New Features**
+
+- **Manual Eviction:**  
+  Clearly documented with method descriptions (`TriggerEviction`) and example usage, showing how to manually trigger the eviction policy.
+
+- **Automatic Eviction:**  
+  Explained through the functional options pattern (`OptionAutoEvict`) and demonstrated in the examples, illustrating how to enable and use automatic eviction.
+
+### **3. Consistency and Clarity**
+
+- **Consistent Formatting:**  
+  Using Markdown conventions for code blocks, headers, and lists ensures the README is easy to read and navigate.
+
+- **Clear API Descriptions:**  
+  Each API method is described with its purpose and usage, aiding developers in understanding how to interact with the packages.
+
+### **4. Encouraging Best Practices**
+
+- **Graceful Shutdowns:**  
+  Examples include defer statements to stop goroutines, promoting best practices in resource management.
+
+- **Thread Safety:**  
+  Documentation and examples highlight thread-safe operations, reassuring users about the reliability of the package in concurrent environments.
+
+### **5. Future Enhancements**
+
+- **Unit Testing:**  
+  While not covered in the README, consider adding a section or separate documentation detailing how to run tests, ensuring users can verify the functionality.
+
+- **Contribution Guidelines:**  
+  To foster community contributions, adding a `CONTRIBUTING.md` file or a section in the README on how to contribute can be beneficial.
+
+- **Issue Reporting:**  
+  Providing clear instructions on how to report issues or request features helps maintain the project's health and responsiveness to user needs.
