@@ -1,9 +1,9 @@
-package aws_test
+package aws_helpers_test
 
 import (
 	"testing"
 
-	aws_helpers "github.com/ren3gadem4rm0t/slack-go-helpers/aws"
+	"github.com/ren3gadem4rm0t/slack-go-helpers/aws_helpers"
 )
 
 func TestAWSAccountFromAWSKeyID(t *testing.T) {

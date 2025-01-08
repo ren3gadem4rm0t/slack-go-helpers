@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ren3gadem4rm0t/slack-go-helpers/aws"
+	"github.com/ren3gadem4rm0t/slack-go-helpers/aws_helpers"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 	}
 
 	for _, keyID := range awsKeyIDs {
-		resourceType, err := aws.AWSResourceTypeFromPrefix(keyID)
+		resourceType, err := aws_helpers.AWSResourceTypeFromPrefix(keyID)
 		if err != nil {
 			log.Printf("Error determining resource type for Key ID '%s': %v\n", keyID, err)
 			continue

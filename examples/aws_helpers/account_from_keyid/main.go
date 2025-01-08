@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ren3gadem4rm0t/slack-go-helpers/aws"
+	"github.com/ren3gadem4rm0t/slack-go-helpers/aws_helpers"
 )
 
 func main() {
@@ -12,7 +12,7 @@ func main() {
 	awsKeyID := "AKIAIKAZ2VEXAMPLE"
 
 	// Extract the AWS Account ID from the AWS Key ID
-	accountID, err := aws.AWSAccountFromAWSKeyID(awsKeyID)
+	accountID, err := aws_helpers.AWSAccountFromAWSKeyID(awsKeyID)
 	if err != nil {
 		log.Fatalf("Error extracting AWS Account ID: %v", err)
 	}

@@ -38,6 +38,7 @@ Then, import the packages as needed:
 import (
     blockbuilder "github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
     deduper "github.com/ren3gadem4rm0t/slack-go-helpers/deduper"
+    aws_helpers "github.com/ren3gadem4rm0t/slack-go-helpers/aws_helpers"
 )
 ```
 
@@ -64,12 +65,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ren3gadem4rm0t/slack-go-helpers/aws"
+	"github.com/ren3gadem4rm0t/slack-go-helpers/aws_helpers"
 )
 
 func main() {
 	keyID := "AKIAEXAMPLE1234567890"
-	accountID, err := aws.AWSAccountFromAWSKeyID(keyID)
+	accountID, err := aws_helpers.AWSAccountFromAWSKeyID(keyID)
 	if err != nil {
 		log.Fatalf("Error extracting account ID: %v", err)
 	}
@@ -93,12 +94,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ren3gadem4rm0t/slack-go-helpers/aws"
+	"github.com/ren3gadem4rm0t/slack-go-helpers/aws_helpers"
 )
 
 func main() {
 	keyID := "AKIAEXAMPLE1234567890"
-	resourceType, err := aws.AWSResourceTypeFromPrefix(keyID)
+	resourceType, err := aws_helpers.AWSResourceTypeFromPrefix(keyID)
 	if err != nil {
 		log.Fatalf("Error determining resource type: %v", err)
 	}
@@ -626,11 +627,11 @@ See [`examples/deduper/socketmode/main.go`](./examples/deduper/socketmode/main.g
 
 ### AWSAccountFromAWSKeyID Example
 
-See [`examples/aws/account_from_keyid/main.go`](./examples/aws/account_from_keyid/main.go) for an example of using AWSAccountFromAWSKeyID.
+See [`examples/aws_helpers/account_from_keyid/main.go`](./examples/aws_helpers/account_from_keyid/main.go) for an example of using AWSAccountFromAWSKeyID.
 
 ### AWSResourceTypeFromPrefix Example
 
-See [`examples/aws/resource_type_from_prefix/main.go`](./examples/aws/resource_type_from_prefix/main.go) for an example of using AWSResourceTypeFromPrefix.
+See [`examples/aws_helpers/resource_type_from_prefix/main.go`](./examples/aws_helpers/resource_type_from_prefix/main.go) for an example of using AWSResourceTypeFromPrefix.
 
 ---
 
