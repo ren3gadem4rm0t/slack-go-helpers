@@ -5,7 +5,7 @@
 ## Table of Contents
 
 - [Installation](#installation)
-- [Modules](#modules)
+- [Packages](#packages)
   - [blockbuilder](#blockbuilder)
     - [BlockBuilder](#blockbuilder)
     - [AttachmentBuilder](#attachmentbuilder)
@@ -38,14 +38,74 @@ Then, import the packages as needed:
 import (
     blockbuilder "github.com/ren3gadem4rm0t/slack-go-helpers/blockbuilder"
     deduper "github.com/ren3gadem4rm0t/slack-go-helpers/deduper"
+    aws_helpers "github.com/ren3gadem4rm0t/slack-go-helpers/aws_helpers"
 )
 ```
 
-## Modules
+## Packages
 
-### blockbuilder
+### aws
 
-The `blockbuilder` package provides abstractions for building Slack Block Kit messages and attachments with clean, type-safe APIs. The package also includes helper utilities for managing colors in Slack messages.
+The `aws` package provides helper functions for extracting useful information from AWS Key IDs, such as determining the AWS Account ID or the resource type based on the key ID prefix.
+
+#### AWSAccountFromAWSKeyID
+
+The `AWSAccountFromAWSKeyID` function decodes an AWS Key ID to extract the associated AWS Account ID.
+
+#### API
+
+- **`AWSAccountFromAWSKeyID(awsKeyID string) (string, error)`**: Decodes the provided AWS Key ID and extracts the 12-digit AWS Account ID. If the decoding fails, it returns an error.
+
+#### Example Usage
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/ren3gadem4rm0t/slack-go-helpers/aws_helpers"
+)
+
+func main() {
+	keyID := "AKIAEXAMPLE1234567890"
+	accountID, err := aws_helpers.AWSAccountFromAWSKeyID(keyID)
+	if err != nil {
+		log.Fatalf("Error extracting account ID: %v", err)
+	}
+	fmt.Printf("AWS Account ID: %s\n", accountID)
+}
+```
+
+#### AWSResourceTypeFromPrefix
+
+The AWSResourceTypeFromPrefix function determines the AWS resource type based on the prefix of an AWS Key ID.
+
+#### API
+- **`AWSResourceTypeFromPrefix(awsKeyID string) (string, error)`**: Identifies the resource type based on the first four characters (prefix) of the AWS Key ID. If the prefix is not recognized, it returns “Unknown resource type.
+
+#### Example Usage
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/ren3gadem4rm0t/slack-go-helpers/aws_helpers"
+)
+
+func main() {
+	keyID := "AKIAEXAMPLE1234567890"
+	resourceType, err := aws_helpers.AWSResourceTypeFromPrefix(keyID)
+	if err != nil {
+		log.Fatalf("Error determining resource type: %v", err)
+	}
+	fmt.Printf("Resource Type: %s\n", resourceType)
+}
+```
 
 #### BlockBuilder
 
@@ -197,14 +257,28 @@ func main() {
 
 #### Color
 
-The `Color` package provides pre-defined constants for common Slack message attachment colors such as success, warning, danger, and informational colors.
+The `Color` package provides pre-defined constants for common Slack message attachment colors as well as an extensive list of additional colors for various contexts.
 
 #### API
 
-- `ColorGood`: Green color (`#36a64f`), typically used for success messages.
-- `ColorWarning`: Orange color (`#ffae42`), typically used for warning messages.
-- `ColorDanger`: Red color (`#ff0000`), typically used for error messages.
-- `ColorInfo`: Blue color (`#439fe0`), typically used for informational messages.
+- **Primary Colors**:
+  - `ColorGood`: Green color (`#36a64f`), typically used for success messages.
+  - `ColorWarning`: Orange color (`#ffae42`), typically used for warning messages.
+  - `ColorDanger`: Red color (`#ff0000`), typically used for error messages.
+  - `ColorInfo`: Blue color (`#439fe0`), typically used for informational messages.
+
+- **Additional Colors**:
+  - `ColorRed`: Same as `ColorDanger` (`#ff0000`).
+  - `ColorGreen`: Same as `ColorGood` (`#36a64f`).
+  - `ColorOrange`: Same as `ColorWarning` (`#ffae42`).
+  - `ColorBlue`: Same as `ColorInfo` (`#439fe0`).
+  - Other descriptive colors include:
+    - `ColorYellow`: Bright yellow (`#ffff00`), ideal for attention-grabbing messages.
+    - `ColorPurple`: Purple (`#800080`), for emphasis or special contexts.
+    - `ColorPink`: Pink (`#ff69b4`), for playful or informal messages.
+    - `ColorGray`: Gray (`#808080`), for neutral or subtle messages.
+    - `ColorTeal`: Teal (`#008080`), for calm tones.
+    - Full list available in the [blockbuilder/color.go](./blockbuilder/color.go).
 
 #### Example Usage
 
@@ -217,12 +291,18 @@ import (
 )
 
 func main() {
-    // Using the color constants to set attachment colors
-    attachment := blockbuilder.NewAttachmentBuilder(blockbuilder.ColorGood).
-        AddSection("Everything is working as expected!", true).
+    // Example with primary colors
+    successAttachment := blockbuilder.NewAttachmentBuilder(blockbuilder.ColorGood).
+        AddSection("Operation completed successfully!", true).
         Build()
 
-    fmt.Println(attachment) // JSON or Slack API usage
+    // Example with additional colors
+    playfulAttachment := blockbuilder.NewAttachmentBuilder(blockbuilder.ColorPink).
+        AddSection("Have a wonderful day!", true).
+        Build()
+
+    fmt.Println(successAttachment) // JSON for Slack API
+    fmt.Println(playfulAttachment) // JSON for Slack API
 }
 ```
 
@@ -544,6 +624,14 @@ See [`examples/deduper/comprehensive/main.go`](./examples/deduper/comprehensive/
 ### Socket Mode Integration Example
 
 See [`examples/deduper/socketmode/main.go`](./examples/deduper/socketmode/main.go) for an example of integrating `Dedupe` with Slack Socket Mode.
+
+### AWSAccountFromAWSKeyID Example
+
+See [`examples/aws_helpers/account_from_keyid/main.go`](./examples/aws_helpers/account_from_keyid/main.go) for an example of using AWSAccountFromAWSKeyID.
+
+### AWSResourceTypeFromPrefix Example
+
+See [`examples/aws_helpers/resource_type_from_prefix/main.go`](./examples/aws_helpers/resource_type_from_prefix/main.go) for an example of using AWSResourceTypeFromPrefix.
 
 ---
 
